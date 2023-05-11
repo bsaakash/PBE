@@ -36,7 +36,7 @@ win32{
 
 win32 {
 RC_ICONS = icons/NHERI-PBE-Icon.ico
-LIBS += $$PWD/../quazip/build/quazip/Release/quazip1-gt5.lib
+LIBS += $$PWD/../quazip/build/quazip/Release/quazip1-qt5.lib
 } else {
 
     mac {
