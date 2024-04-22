@@ -17,6 +17,7 @@
 #include <QDir>
 #include <QStandardPaths>
 #include <QProcessEnvironment>
+#include <QWebEngineView>
 
  // customMessgaeOutput code from web:
  // https://stackoverflow.com/questions/4954140/how-to-redirect-qdebug-qwarning-qcritical-etc-output
@@ -26,6 +27,7 @@ static bool logToFile = false;
 
 void customMessageOutput(QtMsgType type, const QMessageLogContext &context, const QString &msg)
 {
+
     QHash<QtMsgType, QString> msgLevelHash({{QtDebugMsg, "Debug"}, {QtInfoMsg, "Info"}, {QtWarningMsg, "Warning"}, {QtCriticalMsg, "Critical"}, {QtFatalMsg, "Fatal"}});
     QByteArray localMsg = msg.toLocal8Bit();
     QTime time = QTime::currentTime();
@@ -39,7 +41,7 @@ void customMessageOutput(QtMsgType type, const QMessageLogContext &context, cons
         QFile outFile(logFilePath);
         outFile.open(QIODevice::WriteOnly | QIODevice::Append);
         QTextStream ts(&outFile);
-        ts << txt << endl;
+        ts << txt << Qt::endl;
         outFile.close();
     } else {
         fprintf(stderr, "%s %s: %s (%s:%u, %s)\n", formattedTimeMsg.constData(), logLevelMsg.constData(), localMsg.constData(), context.file, context.line, context.function);
@@ -56,10 +58,7 @@ int main(int argc, char *argv[])
     //Setting Core Application Name, Organization and Version
     QCoreApplication::setApplicationName("PBE");
     QCoreApplication::setOrganizationName("SimCenter");
-    QCoreApplication::setApplicationVersion("3.0.8");
-    // GoogleAnalytics::SetTrackingId("UA-126256136-1");
-    GoogleAnalytics::StartSession();
-    GoogleAnalytics::ReportStart();
+    QCoreApplication::setApplicationVersion("3.4.3");
 
 #ifdef Q_OS_WIN
     QApplication::setAttribute(Qt::AA_UseOpenGLES);
@@ -127,8 +126,6 @@ int main(int argc, char *argv[])
     QString("PBE - Performance Based Engineering Application"),
     theInputApp, theRemoteService);
 
-// connect(theInputApp,SIGNAL(sendErrorMessage(QString)), *mainWindow, SLOT(errorM))
-
 
   QString aboutTitle = "About the SimCenter PBE Application"; // this is the title displayed in the on About dialog
   QString aboutSource = ":/resources/docs/textAboutPBE.html";  // this is an HTML file stored under resources
@@ -138,7 +135,8 @@ int main(int argc, char *argv[])
 
   mainWindow.setVersion(version);
 
-  QString citeText("1) Adam Zsarnoczay, Frank McKenna, Charles Wang, Wael Elhaddad, & Michael Gardner. (2022). NHERI-SimCenter/PBE: Version 3.0.0 (v3.0.0). Zenodo. https://doi.org/10.5281/zenodo.7131900  \n\n2) Gregory G. Deierlein, Frank McKenna, Adam Zsarnóczay, Tracy Kijewski-Correa, Ahsan Kareem, Wael Elhaddad, Laura Lowes, Matt J. Schoettler, and Sanjay Govindjee (2020) A Cloud-Enabled Application Framework for Simulating Regional-Scale Impacts of Natural Hazards on the Built Environment. Frontiers in the Built Environment. 6:558706. doi: 10.3389/fbuil.2020.558706");
+  QString citeText("Adam Zsarnoczay, Frank McKenna, Charles Wang, Stevan Gavrilovic, Michael Gardner, Sang-ri Yi, Aakash Bangalore Satish, & Wael Elhaddad. (2024). NHERI-SimCenter/PBE: Version 3.4.0 (V3.4.0). Zenodo. https://doi.org/10.5281/zenodo.10902085 \n\n2) Gregory G. Deierlein, Frank McKenna, Adam Zsarnóczay, Tracy Kijewski-Correa, Ahsan Kareem, Wael Elhaddad, Laura Lowes, Matt J. Schoettler, and Sanjay Govindjee (2020) A Cloud-Enabled Application Framework for Simulating Regional-Scale Impacts of Natural Hazards on the Built Environment. Frontiers in the Built Environment. 6:558706. doi: 10.3389/fbuil.2020.558706");
+
   mainWindow.setCite(citeText);
 
   QString manualURL("https://nheri-simcenter.github.io/PBE-Documentation/");
@@ -193,6 +191,27 @@ int main(int argc, char *argv[])
       qDebug() << "could not open stylesheet";
   }
 
+  //Setting Google Analytics Tracking Information
+  /* **************************************************************
+  GoogleAnalytics::SetMeasurementId("G-JWNPJMZVTK");
+  GoogleAnalytics::SetAPISecret("CL5znZLfQv6N2Tk1RJVMWg");
+  GoogleAnalytics::CreateSessionId();
+  GoogleAnalytics::StartSession();
+
+
+  // Opening a QWebEngineView and using github to get app geographic usage
+  QWebEngineView view;
+  view.setUrl(QUrl("https://nheri-simcenter.github.io/PBE/GA4.html"));
+  view.resize(1024, 750);
+  view.show();
+  view.hide();
+  ******************************************************************* */
+
+
+  //
+  // RUN the GUI
+  //
+  
   int res = a.exec();
 
   //

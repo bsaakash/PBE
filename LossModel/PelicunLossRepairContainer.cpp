@@ -54,6 +54,8 @@ UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
 #include <SectionTitle.h>
 #include <QStringListModel>
 
+#include <RunPythonInThread.h>
+
 #include "SimCenterPreferences.h"
 #include "PelicunLossRepairContainer.h"
 
@@ -89,12 +91,14 @@ PelicunLossRepairContainer::PelicunLossRepairContainer(QWidget *parent)
     databaseConseq = new QComboBox();
     databaseConseq->setToolTip(tr("This database defines the component repair consequence functions available for the analysis."));
     databaseConseq->addItem("FEMA P-58",0);
-    databaseConseq->addItem("Hazus Earthquake",1);
-    databaseConseq->addItem("None",2);
+    databaseConseq->addItem("Hazus Earthquake - Buildings",1);
+    databaseConseq->addItem("Hazus Earthquake - Transportation",2);
+    databaseConseq->addItem("None",3);
 
     databaseConseq->setItemData(0, "Based on the 2nd edition of FEMA P-58", Qt::ToolTipRole);
-    databaseConseq->setItemData(1, "Based on the Hazus MH 2.1 Earthquake Technical Manual", Qt::ToolTipRole);
-    databaseConseq->setItemData(2, "None of the built-in databases will be used", Qt::ToolTipRole);
+    databaseConseq->setItemData(1, "Based on the Hazus MH Earthquake Technical Manual v5.1", Qt::ToolTipRole);
+    databaseConseq->setItemData(2, "Based on the Hazus MH Earthquake Technical Manual v5.1", Qt::ToolTipRole);
+    databaseConseq->setItemData(3, "None of the built-in databases will be used", Qt::ToolTipRole);
 
     connect(databaseConseq,SIGNAL(currentIndexChanged(int)),this,SLOT(updateComponentConsequenceDB()));
 
@@ -293,7 +297,7 @@ PelicunLossRepairContainer::PelicunLossRepairContainer(QWidget *parent)
     // Replacement
 
     QHBoxLayout *replacementLayout = new QHBoxLayout();
-    replacementLayout->setMargin(0);
+    replacementLayout->setContentsMargins(0,0,0,0);;
 
     replacementCheck = new QCheckBox();
     replacementCheck->setText("");
@@ -314,11 +318,11 @@ PelicunLossRepairContainer::PelicunLossRepairContainer(QWidget *parent)
 
     replacementSettings = new QWidget();
     QVBoxLayout * loRepSetV = new QVBoxLayout(replacementSettings);
-    loRepSetV->setMargin(0);
+    loRepSetV->setContentsMargins(0,0,0,0);;
 
     // - - - -
     QHBoxLayout * loReplacementHeader = new QHBoxLayout();
-    loReplacementHeader->setMargin(0);
+    loReplacementHeader->setContentsMargins(0,0,0,0);;
 
     QLabel *lblPlaceholder = new QLabel();
     lblPlaceholder->setText("");
@@ -363,7 +367,7 @@ PelicunLossRepairContainer::PelicunLossRepairContainer(QWidget *parent)
 
     repCostSettings = new QWidget();
     QHBoxLayout * loReplacementCostValues = new QHBoxLayout(repCostSettings);
-    loReplacementCostValues->setMargin(0);
+    loReplacementCostValues->setContentsMargins(0,0,0,0);;
 
     QLabel *lblCost = new QLabel();
     lblCost->setText("Cost: ");
@@ -427,7 +431,7 @@ PelicunLossRepairContainer::PelicunLossRepairContainer(QWidget *parent)
 
     repTimeSettings = new QWidget();
     QHBoxLayout * loReplacementTimeValues = new QHBoxLayout(repTimeSettings);
-    loReplacementTimeValues->setMargin(0);
+    loReplacementTimeValues->setContentsMargins(0,0,0,0);;
 
     QLabel *lblTime = new QLabel();
     lblTime->setText("Time: ");
@@ -491,7 +495,7 @@ PelicunLossRepairContainer::PelicunLossRepairContainer(QWidget *parent)
 
     repCarbonSettings = new QWidget();
     QHBoxLayout * loReplacementCarbonValues = new QHBoxLayout(repCarbonSettings);
-    loReplacementCarbonValues->setMargin(0);
+    loReplacementCarbonValues->setContentsMargins(0,0,0,0);;
 
     QLabel *lblCarbon = new QLabel();
     lblCarbon->setText("Carbon: ");
@@ -554,7 +558,7 @@ PelicunLossRepairContainer::PelicunLossRepairContainer(QWidget *parent)
 
     repEnergySettings = new QWidget();
     QHBoxLayout * loReplacementEnergyValues = new QHBoxLayout(repEnergySettings);
-    loReplacementEnergyValues->setMargin(0);
+    loReplacementEnergyValues->setContentsMargins(0,0,0,0);;
 
     QLabel *lblEnergy = new QLabel();
     lblEnergy->setText("Energy: ");
@@ -642,7 +646,7 @@ PelicunLossRepairContainer::PelicunLossRepairContainer(QWidget *parent)
     mapApproach->addItem("Automatic",0);
     mapApproach->addItem("User Defined",1);
 
-    mapApproach->setItemData(0, "<p>Automatically prepare mapping based on the selected Component Vulnerability database. Only applicable for built-in databases, such as FEMA P-58 and Hazus data.</p>", Qt::ToolTipRole);
+    mapApproach->setItemData(0, "<p>Automatically prepare mapping based on the selected Component Vulnerability database. Only applicable for built-in databases for FEMA P-58 and Hazus EQ - Buildings.</p>", Qt::ToolTipRole);
     mapApproach->setItemData(1, "<p>Custom mapping provided in a CSV file.</p>", Qt::ToolTipRole);
 
     selectMAPLayout->addWidget(mapApproach, 0);
@@ -734,6 +738,8 @@ PelicunLossRepairContainer::updateComponentConsequenceDB(){
 
     bool cmpDataChanged = false;
 
+    QString databasePath = this->getDefaultDatabasePath();
+
     // check the component consequence database set in the combo box
     QString appDir = SimCenterPreferences::getInstance()->getAppDir();
 
@@ -741,13 +747,18 @@ PelicunLossRepairContainer::updateComponentConsequenceDB(){
 
     if (databaseConseq->currentText() == "FEMA P-58") {
 
-        cmpConsequenceDB_tmp = appDir +
-        "/applications/performDL/pelicun3/pelicun/resources/bldg_repair_DB_FEMA_P58_2nd.csv";
+        cmpConsequenceDB_tmp = databasePath +
+        "/resources/SimCenterDBDL/loss_repair_DB_FEMA_P58_2nd.csv";
 
-    } else if (databaseConseq->currentText() == "Hazus Earthquake") {
+    } else if (databaseConseq->currentText() == "Hazus Earthquake - Buildings") {
 
-        cmpConsequenceDB_tmp = appDir +
-        "/applications/performDL/pelicun3/pelicun/resources/bldg_repair_DB_Hazus_EQ.csv";
+        cmpConsequenceDB_tmp = databasePath +
+        "/resources/SimCenterDBDL/loss_repair_DB_Hazus_EQ_bldg.csv";
+
+    } else if (databaseConseq->currentText() == "Hazus Earthquake - Transportation") {
+
+        cmpConsequenceDB_tmp = databasePath +
+        "/resources/SimCenterDBDL/loss_repair_DB_Hazus_EQ_trnsp.csv";
 
     } else {
 
@@ -769,9 +780,13 @@ PelicunLossRepairContainer::updateComponentConsequenceDB(){
 
             // load the visualization path too 
             // (assume that we have a zip file for every bundled DB)
+            cmpConsequenceDB_viz = generateConsequenceInfo(cmpConsequenceDB);
+            
+            /*
             cmpConsequenceDB_viz = cmpConsequenceDB;
             cmpConsequenceDB_viz.chop(4);
             cmpConsequenceDB_viz = cmpConsequenceDB_viz + QString(".zip");
+            */
 
         } else {
             this->statusMessage("Removing built-in component consequence data from the list.");
@@ -810,6 +825,32 @@ PelicunLossRepairContainer::updateComponentConsequenceDB(){
 }
 
 QString
+PelicunLossRepairContainer::getDefaultDatabasePath()
+{
+    SimCenterPreferences *preferences = SimCenterPreferences::getInstance();
+    QString python = preferences->getPython();
+    QString workDir = preferences->getLocalWorkDir();
+    QString appDir = preferences->getAppDir();
+
+    QProcess proc;
+    QStringList params;
+
+    params << appDir + "/applications/performDL/pelicun3/DL_visuals.py" << "query" << "default_db";
+
+    proc.start(python, params);
+    proc.waitForFinished(-1);
+
+    QByteArray stdOut = proc.readAllStandardOutput();
+
+    //this->statusMessage(stdOut);
+    this->errorMessage(proc.readAllStandardError());
+
+    QString databasePath(stdOut);
+
+    return databasePath.trimmed();
+}
+
+QString
 PelicunLossRepairContainer::generateConsequenceInfo(QString comp_DB_path)
 {
 
@@ -818,22 +859,36 @@ PelicunLossRepairContainer::generateConsequenceInfo(QString comp_DB_path)
     QString workDir = preferences->getLocalWorkDir();
     QString appDir = preferences->getAppDir();
 
-    QString output_path = workDir + "/resources/consequence_viz/";
+    QString comp_DB_name = comp_DB_path.mid(comp_DB_path.lastIndexOf("/"));
+    comp_DB_name.chop(4);
 
-    this->statusMessage(python);
-    this->statusMessage(workDir);
-    this->statusMessage(output_path);
+    QString output_path = workDir + "/resources/consequence_viz/" + comp_DB_name + "/";
 
-    QProcess proc;
-    QStringList params;
+    //this->statusMessage(python);
+    //this->statusMessage(workDir);
+    //this->statusMessage(output_path);
 
-    params << appDir + "/applications/performDL/pelicun3/" + "DL_visuals.py" << "repair" << comp_DB_path << "--output_path" << output_path;
+    QString vizScript = appDir + QDir::separator() + "applications" + QDir::separator()
+    + "performDL" + QDir::separator() + "pelicun3" + QDir::separator() + "DL_visuals.py";
 
-    proc.start(python, params);
-    proc.waitForFinished(-1);
+    QStringList args; 
+    args << QString("repair") << QString(comp_DB_path)
+         << QString("--output_path") << QString(output_path);
 
-    this->statusMessage(proc.readAllStandardOutput());
-    this->errorMessage(proc.readAllStandardError());
+    RunPythonInThread *vizThread = new RunPythonInThread(vizScript, args, workDir);
+    //connect(vizThread, &RunPythonInThread::processFinished, this, &PelicunLossRepairContainer::vizFilesCreated);
+    vizThread->runProcess();
+
+    //QProcess proc;
+    //QStringList params;
+
+    //params << appDir + "/applications/performDL/pelicun3/" + "DL_visuals.py" << "repair" << comp_DB_path << "--output_path" << output_path;
+
+    //proc.start(python, params);
+    //proc.waitForFinished(-1);
+
+    //this->statusMessage(proc.readAllStandardOutput());
+    //this->errorMessage(proc.readAllStandardError());
 
     return output_path;
 }
@@ -1000,8 +1055,9 @@ PelicunLossRepairContainer::updateAvailableComponents(){
                 csvFile.close();
 
             } else {
-                this->errorMessage("Cannot open CSV file.");
-                return 1;
+	      QString errMsg(QString("Cannot open CSV file: ") + componentDataBase + QString(".csv"));
+	      this->errorMessage(errMsg);		
+	      return 1;
             }
 
             //this->statusMessage("Successfully parsed CSV file.");
@@ -1241,7 +1297,7 @@ PelicunLossRepairContainer::exportConsequenceDB(void) {
     qDebug() << QString("Exporting consequence database...");
 
     // copy the db file(s) to the desired location
-    QFileInfo fi = leAdditionalComponentDB->text();
+    QFileInfo fi = QFileInfo(leAdditionalComponentDB->text());
 
     // get the filenames
     QString csvFileName = fi.fileName();
@@ -1434,7 +1490,7 @@ bool PelicunLossRepairContainer::outputToJSON(QJsonObject &outputObject) {
         lossData["MapFilePath"] = mapPath->text();
     }
 
-    outputObject["BldgRepair"] = lossData;
+    outputObject["Repair"] = lossData;
 
     return 0;
 }
@@ -1484,8 +1540,15 @@ bool PelicunLossRepairContainer::inputFromJSON(QJsonObject & inputObject) {
     // initialize the panel
     this->initPanel();
 
-    if (inputObject.contains("BldgRepair")) {
-        QJsonObject lossData = inputObject["BldgRepair"].toObject();
+    if (inputObject.contains("BldgRepair") || inputObject.contains("Repair")) {
+
+        QJsonObject lossData;
+        if (inputObject.contains("BldgRepair")) {
+            // for the sake of backwards compatibility
+            lossData = inputObject["BldgRepair"].toObject();
+        } else {
+            lossData = inputObject["Repair"].toObject();
+        }
 
         if (lossData.contains("ConsequenceDatabase")) {
 
@@ -1496,6 +1559,11 @@ bool PelicunLossRepairContainer::inputFromJSON(QJsonObject & inputObject) {
             if (in_componentDB == "User Defined") {
                 in_componentDB = "None";
             }
+
+            if (in_componentDB == "Hazus Earthquake") {
+                in_componentDB = "Hazus Earthquake - Buildings";
+            }
+
             // ---
 
             databaseConseq->setCurrentText(in_componentDB);

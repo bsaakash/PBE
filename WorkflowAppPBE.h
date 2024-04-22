@@ -44,6 +44,7 @@ UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
 #include <WorkflowAppWidget.h>
 
 class LossModelSelection;
+class PerformanceMethodSelection;
 class RandomVariablesContainer;
 class InputWidgetUQ;
 
@@ -93,6 +94,8 @@ public:
     void onExitButtonClicked();
     int getMaxNumParallelTasks();
 
+    int createCitation(QJsonObject &citationToAddTo, QString citeFile);
+  
     QString outputFilePath;
     
 signals:
@@ -119,6 +122,7 @@ private:
     EarthquakeEventSelection *theEventSelection;
     FEA_Selection *theAnalysisSelection;
     LossModelSelection *theDLModelSelection;
+    PerformanceMethodSelection * thePrfMethodSelection;
     ResultsPelicun *theResults;
     QString loadedFile;
   

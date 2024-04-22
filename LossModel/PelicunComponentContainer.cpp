@@ -52,7 +52,6 @@ UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
 #include <QDebug>
 #include <SectionTitle.h>
 #include <QLineEdit>
-#include <QPushButton>
 #include <QRadioButton>
 #include <QFileDialog>
 #include <QScrollArea>
@@ -67,6 +66,10 @@ UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
 #include <QSettings>
 #include <QSignalMapper>
 #include <QWebEngineView>
+#include <RunPythonInThread.h>
+
+#include <QScreen>
+#include <SC_TableEdit.h>
 
 PelicunComponentContainer::PelicunComponentContainer(QWidget *parent)
     : SimCenterAppWidget(parent)
@@ -88,7 +91,6 @@ PelicunComponentContainer::PelicunComponentContainer(QWidget *parent)
     additionalComponentDB = "";
     additionalComponentDB_viz = "";
 
-
     gridLayout = new QGridLayout();
 
     // general information ----------------------------------------------------
@@ -98,6 +100,25 @@ PelicunComponentContainer::PelicunComponentContainer(QWidget *parent)
     QVBoxLayout *generalFormLayout = new QVBoxLayout(generalGroupBox);
     //QFormLayout *generalFormLayout = new QFormLayout();
 
+    /*
+    // adams table
+    QHBoxLayout *adamsTableLayout = new QHBoxLayout();
+    QStringList headings; headings << "Something" << "Else";
+    QStringList data; data << "Row1" << "1.0" << "Row2" << "2.0";
+    QStringList adamsStuff; adamsStuff << "Adams Table" << "Add Below Current" << "Delete Current";
+    adamsTable = new SC_TableEdit("adamsTable",headings, 2, data,&adamsStuff);
+    adamsTableLayout->addWidget(new QLabel("ADAMS TABLE"));
+    QPushButton *adamsTableButton = new QPushButton("PRESS TO SEE TABLE");
+    adamsTableLayout->addWidget(adamsTableButton);
+    connect(adamsTableButton, &QPushButton::clicked, this, [=](){
+              adamsTable->setWindowFlag(Qt::Window);
+              adamsTable->move(screen()->geometry().center() - frameGeometry().center());	      
+	      adamsTable->show();
+	    });
+    generalFormLayout->addLayout(adamsTableLayout);
+    */
+    
+    
     // stories
     QHBoxLayout *storyLayout = new QHBoxLayout();
 
@@ -298,12 +319,14 @@ PelicunComponentContainer::PelicunComponentContainer(QWidget *parent)
     databaseCombo = new QComboBox();
     databaseCombo->setToolTip(tr("This database provides parameters for component vulnerability models to simulate damages."));
     databaseCombo->addItem("FEMA P-58",0);
-    databaseCombo->addItem("Hazus Earthquake",1);
-    databaseCombo->addItem("None",2);
+    databaseCombo->addItem("Hazus Earthquake - Buildings",1);
+    databaseCombo->addItem("Hazus Earthquake - Transportation",2);
+    databaseCombo->addItem("None",3);
 
     databaseCombo->setItemData(0, "Based on the 2nd edition of FEMA P-58", Qt::ToolTipRole);
-    databaseCombo->setItemData(1, "Based on the Hazus MH 2.1 Earthquake Technical Manual", Qt::ToolTipRole);
-    databaseCombo->setItemData(2, "None of the built-in databases will be used", Qt::ToolTipRole);
+    databaseCombo->setItemData(1, "Based on the Hazus MH Earthquake Technical Manual v5.1", Qt::ToolTipRole);
+    databaseCombo->setItemData(2, "Based on the Hazus MH Earthquake Technical Manual v5.1", Qt::ToolTipRole);
+    databaseCombo->setItemData(3, "None of the built-in databases will be used", Qt::ToolTipRole);
 
     connect(databaseCombo,SIGNAL(currentIndexChanged(int)),this,SLOT(updateComponentVulnerabilityDB()));
 
@@ -513,7 +536,7 @@ PelicunComponentContainer::PelicunComponentContainer(QWidget *parent)
 
     loPGroup_header->addStretch();
     loPGroup_header->setSpacing(10);
-    loPGroup_header->setMargin(0);
+    loPGroup_header->setContentsMargins(0,0,0,0);;
 
     loPDetails->addLayout(loPGroup_header);
 
@@ -537,7 +560,7 @@ PelicunComponentContainer::PelicunComponentContainer(QWidget *parent)
     QWidget *PGWidget = new QWidget;
     loPGList = new QVBoxLayout();
     loPGList->addStretch();
-    loPGList->setMargin(0);
+    loPGList->setContentsMargins(0,0,0,0);;
     PGWidget->setLayout(loPGList);
     POPQuantityList->setWidget(PGWidget);
 
@@ -842,7 +865,7 @@ PelicunComponentContainer::PelicunComponentContainer(QWidget *parent)
 
     loCGroup_header->addStretch();
     loCGroup_header->setSpacing(10);
-    loCGroup_header->setMargin(0);
+    loCGroup_header->setContentsMargins(0,0,0,0);;
 
     loCDetails->addLayout(loCGroup_header);
 
@@ -854,7 +877,7 @@ PelicunComponentContainer::PelicunComponentContainer(QWidget *parent)
 
     loCQuantityRemove->addSpacing(2);
     loCQuantityRemove->setSpacing(5);
-    loCQuantityRemove->setMargin(0);
+    loCQuantityRemove->setContentsMargins(0,0,0,0);;
 
     smRemoveCG = new QSignalMapper(this);
     connect(smRemoveCG, SIGNAL(mapped(QWidget*)), this,
@@ -871,7 +894,7 @@ PelicunComponentContainer::PelicunComponentContainer(QWidget *parent)
     loCGList = new QVBoxLayout();
     loCGList->setAlignment(Qt::AlignTop);
     loCGList->setSpacing(5);    
-    loCGList->setMargin(0);
+    loCGList->setContentsMargins(0,0,0,0);;
     CGWidget->setLayout(loCGList);
     saQuantityList->setWidget(CGWidget);
 
@@ -893,6 +916,32 @@ PelicunComponentContainer::PelicunComponentContainer(QWidget *parent)
 }
 
 QString
+PelicunComponentContainer::getDefaultDatabasePath()
+{
+    SimCenterPreferences *preferences = SimCenterPreferences::getInstance();
+    QString python = preferences->getPython();
+    QString workDir = preferences->getLocalWorkDir();
+    QString appDir = preferences->getAppDir();
+
+    QProcess proc;
+    QStringList params;
+
+    params << appDir + "/applications/performDL/pelicun3/DL_visuals.py" << "query" << "default_db";
+
+    proc.start(python, params);
+    proc.waitForFinished(-1);
+
+    QByteArray stdOut = proc.readAllStandardOutput();
+
+    //this->statusMessage(stdOut);
+    this->errorMessage(proc.readAllStandardError());
+
+    QString databasePath(stdOut);
+
+    return databasePath.trimmed();
+}
+
+QString
 PelicunComponentContainer::generateFragilityInfo(QString comp_DB_path)
 {
     SimCenterPreferences *preferences = SimCenterPreferences::getInstance();
@@ -900,22 +949,36 @@ PelicunComponentContainer::generateFragilityInfo(QString comp_DB_path)
     QString workDir = preferences->getLocalWorkDir();
     QString appDir = preferences->getAppDir();
 
-    QString output_path = workDir + "/resources/fragility_viz/";
+    QString comp_DB_name = comp_DB_path.mid(comp_DB_path.lastIndexOf("/"));
+    comp_DB_name.chop(4);
+
+    QString output_path = workDir + "/resources/fragility_viz/" + comp_DB_name + "/";
 
     //this->statusMessage(python);
     //this->statusMessage(workDir);
     //this->statusMessage(output_path);
 
-    QProcess proc;
-    QStringList params;
+    QString vizScript = appDir + QDir::separator() + "applications" + QDir::separator()
+    + "performDL" + QDir::separator() + "pelicun3" + QDir::separator() + "DL_visuals.py";
 
-    params << appDir + "/applications/performDL/pelicun3/" + "DL_visuals.py" << "fragility" << comp_DB_path << "--output_path" << output_path;
+    QStringList args; 
+    args << QString("fragility") << QString(comp_DB_path)
+         << QString("--output_path") << QString(output_path);
 
-    proc.start(python, params);
-    proc.waitForFinished(-1);
+    RunPythonInThread *vizThread = new RunPythonInThread(vizScript, args, workDir);
+    //connect(vizThread, &RunPythonInThread::processFinished, this, &PelicunComponentContainer::vizFilesCreated);
+    vizThread->runProcess();
 
-    this->statusMessage(proc.readAllStandardOutput());
-    this->errorMessage(proc.readAllStandardError());
+    //QProcess proc;
+    //QStringList params;
+
+    //params << appDir + "/applications/performDL/pelicun3/" + "DL_visuals.py" << "fragility" << comp_DB_path << "--output_path" << output_path;
+
+    //proc.start(python, params);
+    //proc.waitForFinished(-1);
+
+    //this->statusMessage(proc.readAllStandardOutput());
+    //this->errorMessage(proc.readAllStandardError());
 
     return output_path;
 }
@@ -1324,8 +1387,9 @@ int PelicunComponentContainer::updateAvailableComponents(){
                 csvFile.close();
 
             } else {
-                this->errorMessage("Cannot open CSV file.");
-                return 1;
+	      QString errMsg(QString("Cannot open CSV file: ") + componentDataBase);
+	      this->errorMessage(errMsg);
+	      return 1;
             }
 
             //this->statusMessage("Successfully parsed CSV file.");
@@ -1347,20 +1411,24 @@ PelicunComponentContainer::updateComponentVulnerabilityDB(){
 
     bool cmpDataChanged = false;
 
+    QString databasePath = this->getDefaultDatabasePath();
+
     // check the component vulnerability database set in the combo box
     QString appDir = SimCenterPreferences::getInstance()->getAppDir();
 
     QString cmpVulnerabilityDB_tmp;
 
     if (databaseCombo->currentText() == "FEMA P-58") {
+        cmpVulnerabilityDB_tmp = databasePath +        
+        "/resources/SimCenterDBDL/damage_DB_FEMA_P58_2nd.csv";
 
-        cmpVulnerabilityDB_tmp = appDir +
-        "/applications/performDL/pelicun3/pelicun/resources/fragility_DB_FEMA_P58_2nd.csv";
+    } else if (databaseCombo->currentText() == "Hazus Earthquake - Buildings") {
+        cmpVulnerabilityDB_tmp = databasePath +
+        "/resources/SimCenterDBDL/damage_DB_Hazus_EQ_bldg.csv";
 
-    } else if (databaseCombo->currentText() == "Hazus Earthquake") {
-
-        cmpVulnerabilityDB_tmp = appDir +
-        "/applications/performDL/pelicun3/pelicun/resources/fragility_DB_Hazus_EQ.csv";
+    } else if (databaseCombo->currentText() == "Hazus Earthquake - Transportation") {
+        cmpVulnerabilityDB_tmp = databasePath +
+        "/resources/SimCenterDBDL/damage_DB_Hazus_EQ_trnsp.csv";        
 
     } else {
 
@@ -1380,10 +1448,14 @@ PelicunComponentContainer::updateComponentVulnerabilityDB(){
                                 QString(databaseCombo->currentText()) +
                                 " data from "+ cmpVulnerabilityDB);
 
+            cmpVulnerabilityDB_viz = generateFragilityInfo(cmpVulnerabilityDB);
+
             // load the visualization path too (assume that we have a zip file for every bundled DB)
+            /*
             cmpVulnerabilityDB_viz = cmpVulnerabilityDB;
             cmpVulnerabilityDB_viz.chop(4);
             cmpVulnerabilityDB_viz = cmpVulnerabilityDB_viz + QString(".zip");
+            */
 
         } else {
             this->statusMessage("Removing built-in component data from the list.");
@@ -1462,7 +1534,7 @@ PelicunComponentContainer::exportComponentVulnerabilityDB(void) {
 
     // copy the db file(s) to the desired location
     //QFileInfo fi = leAdditionalComponentDB->text();
-    QFileInfo fi = cmpVulnerabilityDB;
+    QFileInfo fi = QFileInfo(cmpVulnerabilityDB);
     //QFileInfo fi = this->updateComponentVulnerabilityDB();
 
     // get the filenames
@@ -1676,7 +1748,7 @@ PelicunComponentContainer::loadComponentAssignment(QString filePath) {
 
             QString compName = line_list[0];
             if (compName == "ID") {
-                qDebug() << line_list;
+	      // qDebug() << line_list;
 
                 //if (line_list[line_list.count()-1] == "Comment") {
                 //    hasComment = true;
@@ -1705,7 +1777,7 @@ PelicunComponentContainer::loadComponentAssignment(QString filePath) {
             QMap<QString, QString> *CG_data = new QMap<QString, QString>;
             vCG_data->append(CG_data);
 
-            qDebug() << line_list;
+            // qDebug() << line_list;
 
             if (line_list.count() >= 6) {
                 // fill the CG_data dict with the info from the given row in the file
@@ -1733,7 +1805,7 @@ PelicunComponentContainer::loadComponentAssignment(QString filePath) {
                     CG_data -> insert("comment", line_list[6]);
                 }
             } else {
-                this->statusMessage("Error while parsing line " + QString(counter) + " in the config file");
+                this->statusMessage("Error while parsing line " + QString::number(counter) + " in the config file");
             }
         }
 
@@ -1746,7 +1818,7 @@ PelicunComponentContainer::loadComponentAssignment(QString filePath) {
                 selectedCompCombo->addItem(compName);
             } else {
 	      
-                this->statusMessage("Component " + QString(compName) + "is not in the DL data folder!");
+                this->statusMessage("Component " + QString(compName) + "is not in the DL data library!");
             }
         }
 
@@ -2118,6 +2190,10 @@ PelicunComponentContainer::inputFromJSON(QJsonObject &jsonObject)
 
         if (in_componentDB == "User Defined") {
             in_componentDB = "None";
+        }
+
+        if (in_componentDB == "Hazus Earthquake") {
+            in_componentDB = "Hazus Earthquake - Buildings";
         }
         // ---
 

@@ -48,7 +48,7 @@ parseCSVLine(QString &line, QStringList &line_list,
     int c_0 = 0;
 
     for (int c=0; c<line.length(); c++) {
-        if (line[c] == "\"") {
+        if (line[c] == '"') {
             if (in_commented_block) {
                 save_element = true;
                 in_commented_block = false;
@@ -56,7 +56,7 @@ parseCSVLine(QString &line, QStringList &line_list,
                 in_commented_block = true;
                 c_0 = c+1;
             }
-        } else if (line[c] == ",") {
+        } else if (line[c] == ',') {
             if (c_0 == c){
                 line_list.append("");
                 c_0++;
@@ -76,8 +76,8 @@ parseCSVLine(QString &line, QStringList &line_list,
             save_element = false;
 
             if (c_0 < line.length()-1) {
-                if (line[c_0-1] == "\"") {
-                    if (line[c_0] != ",") {
+                if (line[c_0-1] == '"') {
+                    if (line[c_0] != ',') {
                         if (parent != nullptr){
                            parent->statusMessage("Error while parsing CSV file at the following line: " + line);   
                         }
